@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Real Estate Price Prediction App for ScoutOut</title>
+  <style>
+    /* Page and container */
+    :root{
+      --bg: #A51C30;
+      --card: #ffffff;
+      --muted-white: #f7f7f7;
+      --text-white: #ffffff;   
+      --black: #000000;
+    }
+    html,body{
+      height:100%;
+      margin:0;
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg);
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+    .outer {
+      display:flex;
+      justify-content:center;
+      padding:48px 20px 80px;
+    }
+    .card {
+      width:820px; /* match screenshot width */
+      max-width:100%;
+      text-align:center;
+      color:var(--text-white);
+    }
+
+    /* Title */
+    .title {
+      font-size:48px;
+      font-weight:700;
+      margin:0;
+      line-height:1.02;
+      padding-bottom:6px;
+    }
+    .sub {
+      font-size:16px;
+      margin:0 0 18px 0;
+      font-weight:400;
+      opacity:0.95;
+    }
+    .prompt {
+      font-size:16px;
+      margin:10px 0 26px 0;
+      font-weight:600;
+    }
+
+    /* Grid of inputs */
+    .grid {
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:22px;
+      margin: 0 auto;
+      width:820px;
+      max-width:100%;
+      box-sizing:border-box;
+    }
+
+    .field {
+      background:var(--card);
+      border-radius:12px;
+      padding:20px 22px;
+      text-align:left;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.06);
+    }
+    .field-label {
+      font-size:12px;
+      font-weight:700;
+      color:#333;
+      margin-bottom:12px;
+    }
+    .field input[type="number"],
+    .field input[type="text"],
+    .field input[type="month"]{
+      width:100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-size:16px;
+      color:#333;
+      padding:12px 14px;
+      border-radius:8px;
+      box-sizing:border-box;
+      background-color: #fafafa;
+    }
+    .field input::placeholder { color:#bbb; }
+
+    /* Predict button area */
+    .btn-wrap {
+      grid-column: 1 / -1;
+      margin-top:22px;
+      background: #fff;
+      padding:18px;
+      border-radius:10px;
+      display:flex;
+      justify-content:center;
+    }
+    .predict {
+      background: var(--black);
+      color: var(--card);
+      border-radius:8px;
+      font-weight:700;
+      font-size:18px;
+      padding:14px 130px;
+      border:none;
+      cursor:pointer;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+    }
+
+    /* Result text */
+    .result {
+      margin-top:18px;
+      font-size:16px;
+      color: #fff;
+      font-weight:700;
+    }
+
+    /* Responsive tweaks */
+    @media (max-width:900px){
+      .grid{ width:100%; grid-template-columns: 1fr 1fr; }
+      .card { width:100%; }
+      .predict { padding:12px 40px; }
+    }
+    @media (max-width:520px){
+      .grid { grid-template-columns: 1fr; }
+      .btn-wrap { padding:12px; }
+      .predict { width:100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="outer">
+    <div class="card">
+      <div style="height:6px"></div>
+      <h1 class="title">Real Estate Price Prediction App for ScoutOut</h1>
+      <div class="sub">by HUVTSP s2-int-scoutout-y2t</div>
+      <div class="prompt">Enter property details below:</div>
+
+      <form id="predict-form" class="grid" onsubmit="return onSubmit(event)">
+        <div class="field">
+          <div class="field-label">BEDS</div>
+          <input type="number" name="beds" min="1" max="10" step="1" value="" required>
+        </div>
+
+        <div class="field">
+          <div class="field-label">BATHS</div>
+          <input type="number" name="baths" min="1" max="10" step="1" value="" required>
+        </div>
+
+        <div class="field">
+          <div class="field-label">SQFT</div>
+          <input type="number" name="sqft" min="500" max="10000" step="1" value="" required>
+        </div>
+
+        <div class="field">
+          <div class="field-label">LOT (acres)</div>
+          <input type="number" name="lot" min="0.000" max="10" step="0.01" value="" required>
+        </div>
+
+        <div class="field">
+          <div class="field-label">ZIP</div>
+          <input type="text" name="zip" value="" required>
+        </div>
+
+        <div class="field">
+          <div class="field-label">DATE</div>
+          <input type="month" name="date" value="2025-01" required>
+        </div>
+
+        <div class="btn-wrap">
+          <button type="submit" class="predict">Predict</button>
+        </div>
+      </form>
+
+      <div id="result" class="result" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <script>
+    async function onSubmit(e) {
+      e.preventDefault();
+      const form = e.target;
+      const fd = new FormData(form);
+      const data = Object.fromEntries(fd.entries());
+
+      // Show a short loading state
+      const resultEl = document.getElementById('result');
+      resultEl.textContent = "Predicting...";
+      try {
+        const resp = await fetch('/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const json = await resp.json();
+        if (json.success) {
+          // Format as currency
+          const price = Number(json.price);
+          resultEl.textContent = `The predicted price of the property is: $${price.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+        } else {
+          resultEl.textContent = "Prediction error: " + (json.error || "unknown");
+        }
+      } catch (err) {
+        console.error(err);
+        resultEl.textContent = "Error contacting server.";
+      }
+      return false;
+    }
+  </script>
+</body>
+</html>
